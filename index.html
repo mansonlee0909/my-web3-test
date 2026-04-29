@@ -1,38 +1,97 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Web3 Interaction</title>
+    <meta charset="UTF-8">
+    <title>Web3 Smart Contract Task</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding-top: 50px; }
+        input { padding: 10px; width: 200px; }
+        button { padding: 10px 20px; cursor: pointer; background-color: #f6851b; color: white; border: none; border-radius: 5px; }
+        #status { margin-top: 20px; color: #666; }
+    </style>
 </head>
 <body>
-    <h1>我的智能合約互動頁面</h1>
-    <p>目前數值: <span id="displayData">讀取中...</span></p>
-    <input type="number" id="newValue" placeholder="輸入數字">
-    <button onclick="updateData()">更新數值</button>
+
+    <h1>智能合約互動練習</h1>
+    
+    <div>
+        <p>目前合約存儲的數值: <strong id="displayData">讀取中...</strong></p>
+    </div>
+
+    <hr style="width: 50%; margin: 30px auto;">
+
+    <div>
+        <input type="number" id="newValue" placeholder="輸入要改變的數字">
+        <button onclick="updateData()">更新數值</button>
+    </div>
+
+    <p id="status"></p>
 
     <script>
+        // 1. 填入你的合約地址
         const contractAddress = "0xDe467Cae710d0bFF7a9df6eBB4bA8D51Dbc1BbB5";
-        const abi = [ { "inputs": [{ "internalType": "uint256", "name": "_data", "type": "uint256" }], "name": "set", "outputs": [], "stateMutability": "nonpayable", "type": "function" }, { "inputs": [], "name": "data", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" } ];
+
+        // 2. 這是你剛才貼給我的 ABI
+        const abi = [
+            { "inputs": [{ "internalType": "uint256", "name": "_data", "type": "uint256" }], "name": "set", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
+            { "inputs": [], "name": "data", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" }
+        ];
+
+        let contract;
+        let provider;
 
         async function init() {
             if (window.ethereum) {
-                const provider = new ethers.BrowserProvider(window.ethereum);
-                const contract = new ethers.Contract(contractAddress, abi, provider);
-                const value = await contract.data();
-                document.getElementById('displayData').innerText = value;
+                try {
+                    // 請求 MetaMask 連線
+                    await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    
+                    provider = new ethers.BrowserProvider(window.ethereum);
+                    contract = new ethers.Contract(contractAddress, abi, provider);
+
+                    // 讀取當前數值
+                    const value = await contract.data();
+                    document.getElementById('displayData').innerText = value.toString();
+                    document.getElementById('status').innerText = "MetaMask 連線成功！";
+                } catch (error) {
+                    console.error(error);
+                    document.getElementById('status').innerText = "連線失敗或使用者拒絕";
+                }
+            } else {
+                alert("請安裝 MetaMask 插件！");
             }
         }
 
         async function updateData() {
-            const provider = new ethers.BrowserProvider(window.ethereum);
-            const signer = await provider.getSigner();
-            const contract = new ethers.Contract(contractAddress, abi, signer);
             const inputVal = document.getElementById('newValue').value;
-            const tx = await contract.set(inputVal);
-            await tx.wait(); // 等待交易打包
-            init(); // 重新整理顯示數值
+            if (!inputVal) return alert("請輸入數字");
+
+            try {
+                document.getElementById('status').innerText = "等待錢包簽署中...";
+                
+                // 寫入操作需要 Signer (簽署者)
+                const signer = await provider.getSigner();
+                const contractWithSigner = new ethers.Contract(contractAddress, abi, signer);
+                
+                const tx = await contractWithSigner.set(inputVal);
+                document.getElementById('status').innerText = "交易已送出，等待區塊鏈確認...";
+                
+                await tx.wait(); // 等待交易成功上鏈
+                
+                document.getElementById('status').innerText = "更新成功！";
+                
+                // 重新讀取新數值
+                const newValue = await contract.data();
+                document.getElementById('displayData').innerText = newValue.toString();
+            } catch (error) {
+                console.error(error);
+                document.getElementById('status').innerText = "交易失敗，請查看控制台";
+            }
         }
-        init();
+
+        // 頁面載入時執行初始化
+        window.onload = init;
     </script>
 </body>
 </html>
