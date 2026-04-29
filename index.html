@@ -1,68 +1,45 @@
-<!DOCTYPE html>
-<html lang="zh-Hant">
-<head>
-    <meta charset="UTF-8">
-    <title>Web3 最終修正版</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
-    <style>
-        body { font-family: sans-serif; text-align: center; padding-top: 50px; background-color: #f0f2f5; }
-        .box { background: white; padding: 40px; border-radius: 20px; display: inline-block; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        .number { font-size: 48px; color: #f6851b; margin: 20px 0; font-weight: bold; }
-        button { padding: 12px 24px; background: #f6851b; color: white; border: none; border-radius: 8px; cursor: pointer; }
-        #status { color: #888; margin-top: 20px; }
-    </style>
-</head>
-<body>
-    <div class="box">
-        <h1>智能合約互動</h1>
-        <p>目前合約儲存的數字：</p>
-        <div id="displayData" class="number">讀取中...</div>
-        <input type="number" id="newValue" style="padding:10px; width:100px;">
-        <button onclick="updateData()">更新</button>
-        <p id="status">正在連接 Sepolia 網路...</p>
-    </div>
+// 1. 確認地址（這是你截圖左下角的地址）
+const contractAddress = "0xDe467Cae710d0bFF7a9df6eBB4bA8D51Dbc1BbB5";
 
-    <script>
-        // 確認使用 Remix 截圖下方的合約地址
-        const contractAddress = "0xDe467Cae710d0bFF7a9df6eBB4bA8D51Dbc1BbB5";
-        const abi = [
-            "function data() public view returns (uint256)",
-            "function set(uint256 _data) public"
-        ];
+// 2. 簡化版 ABI，減少解碼錯誤
+const abi = [
+    "function data() public view returns (uint256)",
+    "function set(uint256 _data) public"
+];
 
-        let provider, contract;
+let provider, contract;
 
-        async function init() {
-            if (window.ethereum) {
-                try {
-                    await window.ethereum.request({ method: 'eth_requestAccounts' });
-                    provider = new ethers.BrowserProvider(window.ethereum);
-                    contract = new ethers.Contract(contractAddress, abi, provider);
-                    const val = await contract.data();
-                    document.getElementById('displayData').innerText = val.toString();
-                    document.getElementById('status').innerText = "連線成功！";
-                } catch (err) {
-                    document.getElementById('status').innerText = "讀取失敗：" + err.message;
-                }
+async function init() {
+    if (window.ethereum) {
+        try {
+            // 強制請求連線
+            await window.ethereum.request({ method: 'eth_requestAccounts' });
+            
+            // 使用 BrowserProvider
+            provider = new ethers.BrowserProvider(window.ethereum);
+            
+            // 【重要：檢查網路】
+            const network = await provider.getNetwork();
+            console.log("當前連線網路 ID:", network.chainId);
+
+            // 如果不是 Sepolia (ID: 11155111)，強制報錯提醒
+            if (network.chainId !== 11155111n) {
+                document.getElementById('status').innerText = "錯誤：請將 MetaMask 切換到 Sepolia 測試網！";
+                document.getElementById('displayData').innerText = "網路錯誤";
+                return;
             }
-        }
 
-        async function updateData() {
-            const inputVal = document.getElementById('newValue').value;
-            try {
-                const signer = await provider.getSigner();
-                const contractWithSigner = new ethers.Contract(contractAddress, abi, signer);
-                const tx = await contractWithSigner.set(inputVal);
-                document.getElementById('status').innerText = "等待區塊鏈確認...";
-                await tx.wait();
-                const newVal = await contract.data();
-                document.getElementById('displayData').innerText = newVal.toString();
-                document.getElementById('status').innerText = "更新完成！";
-            } catch (err) {
-                alert("交易失敗：" + err.message);
-            }
+            contract = new ethers.Contract(contractAddress, abi, provider);
+
+            // 讀取數據
+            const val = await contract.data();
+            document.getElementById('displayData').innerText = val.toString();
+            document.getElementById('status').innerText = "連線成功 (Sepolia)";
+        } catch (err) {
+            console.error("詳細錯誤資訊:", err);
+            document.getElementById('status').innerText = "讀取失敗，請確認合約已部署";
         }
-        window.onload = init;
-    </script>
-</body>
-</html>
+    } else {
+        document.getElementById('status').innerText = "未安裝 MetaMask";
+    }
+}
