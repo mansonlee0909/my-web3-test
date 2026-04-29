@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Web3 Interaction</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+</head>
+<body>
+    <h1>我的智能合約互動頁面</h1>
+    <p>目前數值: <span id="displayData">讀取中...</span></p>
+    <input type="number" id="newValue" placeholder="輸入數字">
+    <button onclick="updateData()">更新數值</button>
+
+    <script>
+        const contractAddress = "0xDe467Cae710d0bFF7a9df6eBB4bA8D51Dbc1BbB5";
+        const abi = [ { "inputs": [{ "internalType": "uint256", "name": "_data", "type": "uint256" }], "name": "set", "outputs": [], "stateMutability": "nonpayable", "type": "function" }, { "inputs": [], "name": "data", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" } ];
+
+        async function init() {
+            if (window.ethereum) {
+                const provider = new ethers.BrowserProvider(window.ethereum);
+                const contract = new ethers.Contract(contractAddress, abi, provider);
+                const value = await contract.data();
+                document.getElementById('displayData').innerText = value;
+            }
+        }
+
+        async function updateData() {
+            const provider = new ethers.BrowserProvider(window.ethereum);
+            const signer = await provider.getSigner();
+            const contract = new ethers.Contract(contractAddress, abi, signer);
+            const inputVal = document.getElementById('newValue').value;
+            const tx = await contract.set(inputVal);
+            await tx.wait(); // 等待交易打包
+            init(); // 重新整理顯示數值
+        }
+        init();
+    </script>
+</body>
+</html>
