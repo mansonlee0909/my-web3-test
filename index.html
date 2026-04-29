@@ -2,37 +2,32 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <title>Web3 智能合約練習 - 成功版</title>
+    <title>Web3 最終修正版</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
     <style>
         body { font-family: sans-serif; text-align: center; padding-top: 50px; background-color: #f0f2f5; }
-        .box { background: white; padding: 40px; border-radius: 20px; display: inline-block; shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .box { background: white; padding: 40px; border-radius: 20px; display: inline-block; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         .number { font-size: 48px; color: #f6851b; margin: 20px 0; font-weight: bold; }
-        button { padding: 12px 24px; background: #f6851b; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; }
-        input { padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; width: 150px; }
+        button { padding: 12px 24px; background: #f6851b; color: white; border: none; border-radius: 8px; cursor: pointer; }
         #status { color: #888; margin-top: 20px; }
     </style>
 </head>
 <body>
-
     <div class="box">
-        <h1>我的智能合約互動頁面</h1>
-        <p>目前合約儲存的數字為：</p>
+        <h1>智能合約互動</h1>
+        <p>目前合約儲存的數字：</p>
         <div id="displayData" class="number">讀取中...</div>
-
-        <input type="number" id="newValue" placeholder="輸入數字">
-        <button onclick="updateData()">更新數值</button>
-        
-        <p id="status">準備連線至 MetaMask...</p>
+        <input type="number" id="newValue" style="padding:10px; width:100px;">
+        <button onclick="updateData()">更新</button>
+        <p id="status">正在連接 Sepolia 網路...</p>
     </div>
 
     <script>
-        // 這是你剛剛產生的 Sepolia 真實合約地址
-        const contractAddress = "0xd6a313548ea75984c5d55a59c436e25d0e9bc514";
-
+        // 確認使用 Remix 截圖下方的合約地址
+        const contractAddress = "0xDe467Cae710d0bFF7a9df6eBB4bA8D51Dbc1BbB5";
         const abi = [
-            { "inputs": [{ "internalType": "uint256", "name": "_data", "type": "uint256" }], "name": "set", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
-            { "inputs": [], "name": "data", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" }
+            "function data() public view returns (uint256)",
+            "function set(uint256 _data) public"
         ];
 
         let provider, contract;
@@ -40,46 +35,33 @@
         async function init() {
             if (window.ethereum) {
                 try {
-                    // 1. 請求連線
                     await window.ethereum.request({ method: 'eth_requestAccounts' });
-                    
                     provider = new ethers.BrowserProvider(window.ethereum);
                     contract = new ethers.Contract(contractAddress, abi, provider);
-
-                    // 2. 讀取數據
                     const val = await contract.data();
                     document.getElementById('displayData').innerText = val.toString();
-                    document.getElementById('status').innerText = "連線成功！正在使用 Sepolia 網路";
+                    document.getElementById('status').innerText = "連線成功！";
                 } catch (err) {
-                    document.getElementById('status').innerText = "錯誤: " + err.message;
+                    document.getElementById('status').innerText = "讀取失敗：" + err.message;
                 }
-            } else {
-                document.getElementById('status').innerText = "未安裝 MetaMask";
             }
         }
 
         async function updateData() {
             const inputVal = document.getElementById('newValue').value;
-            if (!inputVal) return alert("請輸入數字");
-
             try {
-                document.getElementById('status').innerText = "發送交易中，請在錢包確認...";
                 const signer = await provider.getSigner();
                 const contractWithSigner = new ethers.Contract(contractAddress, abi, signer);
-                
                 const tx = await contractWithSigner.set(inputVal);
-                document.getElementById('status').innerText = "交易已送出，等待確認...";
-                
-                await tx.wait(); 
-                document.getElementById('status').innerText = "🎉 更新成功！";
-                
+                document.getElementById('status').innerText = "等待區塊鏈確認...";
+                await tx.wait();
                 const newVal = await contract.data();
                 document.getElementById('displayData').innerText = newVal.toString();
+                document.getElementById('status').innerText = "更新完成！";
             } catch (err) {
-                document.getElementById('status').innerText = "交易失敗: " + err.message;
+                alert("交易失敗：" + err.message);
             }
         }
-
         window.onload = init;
     </script>
 </body>
